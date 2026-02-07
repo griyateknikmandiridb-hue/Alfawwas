@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aplikasi Google Sheets Saya</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: #4a5568;
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 24px;
+            margin-bottom: 10px;
+        }
+        
+        .header p {
+            opacity: 0.8;
+        }
+        
+        .controls {
+            padding: 15px;
+            background: #f7fafc;
+            border-bottom: 1px solid #e2e8f0;
+            display: flex;
+            gap: 10px;
+        }
+        
+        .btn {
+            padding: 10px 20px;
+            background: #4299e1;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background 0.3s;
+        }
+        
+        .btn:hover {
+            background: #3182ce;
+        }
+        
+        .btn-refresh {
+            background: #48bb78;
+        }
+        
+        .btn-refresh:hover {
+            background: #38a169;
+        }
+        
+        .data-container {
+            padding: 20px;
+            max-height: 500px;
+            overflow-y: auto;
+        }
+        
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        .data-table th {
+            background: #4a5568;
+            color: white;
+            padding: 12px;
+            text-align: left;
+            position: sticky;
+            top: 0;
+        }
+        
+        .data-table td {
+            padding: 12px;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        
+        .data-table tr:hover {
+            background: #f7fafc;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #718096;
+        }
+        
+        .error {
+            color: #f56565;
+            padding: 20px;
+            text-align: center;
+            background: #fff5f5;
+            border-radius: 8px;
+            margin: 20px;
+        }
+        
+        .footer {
+            padding: 15px;
+            text-align: center;
+            color: #718096;
+            font-size: 14px;
+            border-top: 1px solid #e2e8f0;
+            background: #f7fafc;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📊 Aplikasi Data Google Sheets</h1>
+            <p>Data langsung dari Google Sheets Anda</p>
+        </div>
+        
+        <div class="controls">
+            <button class="btn btn-load" onclick="loadData()">📥 Load Data</button>
+            <button class="btn btn-refresh" onclick="loadData()">🔄 Refresh</button>
+            <div style="flex-grow: 1"></div>
+            <div id="status">Status: Ready</div>
+        </div>
+        
+        <div class="data-container" id="dataContainer">
+            <div class="loading" id="loading">
+                🔄 Loading data...
+            </div>
+            <!-- Data akan ditampilkan di sini -->
+        </div>
+        
+        <div class="footer">
+            <p>© 2024 Aplikasi Sample | Data diambil dari Google Sheets</p>
+            <p id="rowCount">0 data tersedia</p>
+        </div>
+    </div>
+
+    <script>
+        // ========== KONFIGURASI ==========
+        const SHEET_ID = 1jec4yvmaIJqGzHTklYojeAQ8kCh3SD9KKPLsa9hBrO0 // Ganti dengan Sheet ID Anda
+        const API_KEY = AIzaSyDp_GEMC2cm70sIeguuUiuN4YHsnsHBCLo// Ganti dengan API Key Anda
+        const SHEET_NAME = produk                   // Ganti dengan nama sheet Anda
+        
+        // URL API Google Sheets
+        const API_URL = https://sheets.googleapis.com/v4/spreadsheets/1jec4yvmaIJqGzHTklYojeAQ8kCh3SD9KKPLsa9hBrO0/values/produk?key=AIzaSyDp_GEMC2cm70sIeguuUiuN4YHsnsHBCLo
+        
+        // ========== FUNGSI UTAMA ==========
+        async function loadData() {
+            const loadingEl = document.getElementById('loading');
+            const dataContainer = document.getElementById('dataContainer');
+            const statusEl = document.getElementById('status');
+            
+            // Tampilkan loading
+            loadingEl.style.display = 'block';
+            dataContainer.innerHTML = '<div class="loading">🔄 Loading data...</div>';
+            statusEl.textContent = 'Status: Loading...';
+            
+            try {
+                // Fetch data dari Google Sheets API
+                const response = await fetch(API_URL);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! Status: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                
+                // Cek jika ada data
+                if (!data.values || data.values.length === 0) {
+                    dataContainer.innerHTML = `
+                        <div class="error">
+                            ❌ Tidak ada data ditemukan di Google Sheets.
+                        </div>
+                    `;
+                    statusEl.textContent = 'Status: Tidak ada data';
+                    return;
+                }
+                
+                // Proses data
+                displayData(data.values);
+                
+                // Update status
+                const rowCount = data.values.length - 1; // Kurangi header
+                document.getElementById('rowCount').textContent = `${rowCount} data tersedia`;
+                statusEl.textContent = `Status: Loaded ${rowCount} rows`;
+                
+            } catch (error) {
+                console.error('Error:', error);
+                dataContainer.innerHTML = `
+                    <div class="error">
+                        ❌ Error: ${error.message}<br>
+                        Pastikan:<br>
+                        1. API Key valid<br>
+                        2. Google Sheets di-share publik<br>
+                        3. Koneksi internet stabil
+                    </div>
+                `;
+                statusEl.textContent = 'Status: Error';
+            } finally {
+                loadingEl.style.display = 'none';
+            }
+        }
+        
+        // ========== FUNGSI TAMPILKAN DATA ==========
+        function displayData(rows) {
+            const dataContainer = document.getElementById('dataContainer');
+            
+            // Ambil header (baris pertama)
+            const headers = rows[0];
+            
+            // Ambil data (baris selanjutnya)
+            const dataRows = rows.slice(1);
+            
+            // Buat tabel HTML
+            let html = `
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            ${headers.map(header => `<th>${header}</th>`).join('')}
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+            
+            // Tambahkan baris data
+            dataRows.forEach(row => {
+                html += '<tr>';
+                row.forEach(cell => {
+                    html += `<td>${cell || ''}</td>`;
+                });
+                html += '</tr>';
+            });
+            
+            html += `
+                    </tbody>
+                </table>
+            `;
+            
+            dataContainer.innerHTML = html;
+        }
+        
+        // ========== INISIALISASI ==========
+        // Load data otomatis saat halaman dibuka
+        document.addEventListener('DOMContentLoaded', () => {
+            // Tunggu 1 detik lalu load data
+            setTimeout(loadData, 1000);
+        });
+        
+        // Auto-refresh setiap 30 detik
+        setInterval(loadData, 30000);
+    </script>
+</body>
+</html>
